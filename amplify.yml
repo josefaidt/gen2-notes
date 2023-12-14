@@ -3,6 +3,12 @@ frontend:
   phases:
     preBuild:
       commands:
+        # install fnm
+        - curl -fsSL https://fnm.vercel.app/install | bash
+        # install and use node.js version from .node-version
+        - fnm install
+        - fnm use
+        # enable corepack to auto-prepare pnpm version specified in package.json#packageManager
         - corepack enable
         - pnpm install
     build:
@@ -14,4 +20,7 @@ frontend:
       - '**/*'
   cache:
     paths:
+      # cache pnpm store for faster subsequent installs
       - $(pnpm store path)
+      # cache fnm install for faster manuevering of node.js versions
+      - $HOME/.fnm
