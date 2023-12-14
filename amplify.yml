@@ -5,6 +5,7 @@ frontend:
       commands:
         # install fnm
         - curl -fsSL https://fnm.vercel.app/install | bash
+        - source $HOME/.bashrc
         # install and use node.js version from .node-version
         - fnm install
         - fnm use
