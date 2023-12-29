@@ -1,10 +1,11 @@
 ---
-title: 'Adding Auth Groups'
-description: A guide to configuring User Pool Groups.
+title: Adding Auth Groups
+description: A guide to configuring User Pool Groups
 ---
 
 ```ts
 // amplify/custom/AuthGroup.ts
+import * as cdk from 'aws-cdk-lib/core'
 import * as cognito from 'aws-cdk-lib/aws-cognito'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import { Construct } from 'constructs'
@@ -18,6 +19,10 @@ export type AuthGroupProps = {
    * User Pool ID to create with
    */
   userPoolId: string
+  /**
+   * Identity Pool ID to validate with IAM
+   */
+  identityPoolId: string
 }
 
 export class AuthGroup extends Construct {
@@ -27,13 +32,13 @@ export class AuthGroup extends Construct {
   constructor(scope: Construct, id: string, props: AuthGroupProps) {
     super(scope, id)
 
-    const { name, userPoolId } = props
+    const { name, userPoolId, identityPoolId } = props
 
-    const userPoolGroupRole = new iam.Role(scope, `Group${name}Role`, {
+    const userPoolGroupRole = new iam.Role(scope, 'GroupRole', {
       assumedBy: new iam.ServicePrincipal('cognito-idp.amazonaws.com', {
         conditions: {
           StringEquals: {
-            'cognito-identity.amazonaws.com:aud': userPoolId,
+            'cognito-identity.amazonaws.com:aud': identityPoolId,
           },
           'ForAnyValue:StringLike': {
             'cognito-identity.amazonaws.com:amr': 'authenticated',
@@ -42,7 +47,7 @@ export class AuthGroup extends Construct {
       }),
     })
 
-    const userPoolGroup = new cognito.CfnUserPoolGroup(scope, `Group${name}`, {
+    const userPoolGroup = new cognito.CfnUserPoolGroup(scope, 'Group', {
       userPoolId: userPoolId,
       groupName: name,
       roleArn: userPoolGroupRole.roleArn,
@@ -50,6 +55,15 @@ export class AuthGroup extends Construct {
 
     this.group = userPoolGroup
     this.role = userPoolGroupRole
+
+    new cdk.CfnOutput(this, 'GroupNameOutput', {
+      value: userPoolGroup.groupName!,
+      exportName: `${name}Group`,
+    })
+
+    new cdk.CfnOutput(this, 'GroupRoleArn', {
+      value: userPoolGroupRole.roleArn,
+    })
   }
 }
 ```
@@ -67,7 +81,7 @@ const backend = defineBackend({
   data,
 })
 
-const { userPool } = backend.resources.auth.resources
+const { cfnResources, userPool } = backend.resources.auth.resources
 
 // define the groups
 const GROUPS = {
@@ -82,6 +96,7 @@ for (const group of Object.values(GROUPS)) {
   groups[group] = new AuthGroup(groupsStack, `AuthGroup${group}`, {
     name: group,
     userPoolId: userPool.userPoolId,
+    identityPoolId: cfnResources.cfnIdentityPool.ref,
   })
 }
 ```
